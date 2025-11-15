@@ -1,0 +1,117 @@
+---
+title: "Final_Project"
+author: "Jack McMahon"
+date: "2025-10-30"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Loading Data and Clusters
+
+```{r cars}
+setwd("/Users/jackmcmahon/Desktop/COS 551")
+table = read.table("Breast_GSE45827.csv", row.names=1, header = TRUE, sep = ",", as.is = TRUE)
+```
+
+```{r cars}
+setwd("/Users/jackmcmahon/Desktop/COS 551")
+table2 = read.table("subtyping_by_clustering.csv", row.names=1, header = TRUE, sep = ",", as.is = TRUE)
+```
+
+## Setting Up Cross-Validation Split
+
+```{r}
+
+library(splitTools)
+
+all_table = cbind(table, table2["cluster"])
+
+set.seed(1)
+folds <- partition(all_table$cluster, p = c(f1=0.2, f2=0.2, f3=0.2, f4=0.2, f5=0.2))
+
+x = table[2:ncol(table)]
+y = all_table["cluster"]
+```
+
+```{r}
+xtrain1 = x[c(folds$f2, folds$f3, folds$f4, folds$f5),]
+ytrain1 = y[c(folds$f2, folds$f3, folds$f4, folds$f5),]
+xtest1 = x[folds$f1,]
+ytest1 = y[folds$f1,]
+
+xtrain2 = x[c(folds$f1, folds$f3, folds$f4, folds$f5),]
+ytrain2 = y[c(folds$f1, folds$f3, folds$f4, folds$f5),]
+xtest2 = x[folds$f2,]
+ytest2 = y[folds$f2,]
+
+xtrain3 = x[c(folds$f2, folds$f1, folds$f4, folds$f5),]
+ytrain3 = y[c(folds$f2, folds$f1, folds$f4, folds$f5),]
+xtest3 = x[folds$f3,]
+ytest3 = y[folds$f3,]
+
+xtrain4 = x[c(folds$f2, folds$f3, folds$f1, folds$f5),]
+ytrain4 = y[c(folds$f2, folds$f3, folds$f1, folds$f5),]
+xtest4 = x[folds$f4,]
+ytest4 = y[folds$f4,]
+
+xtrain5 = x[c(folds$f2, folds$f3, folds$f4, folds$f1),]
+ytrain5 = y[c(folds$f2, folds$f3, folds$f4, folds$f1),]
+xtest5 = x[folds$f5,]
+ytest5 = y[folds$f5,]
+```
+
+## Running Random Forest
+
+```{r}
+library(randomForest)
+#code written with reference from: https://www.css.cornell.edu/faculty/dgr2/_static/files/R_html/CompareRandomForestPackages_v2.html
+
+model1 = randomForest(x = xtrain1, y = as.factor(ytrain1), ntree = 500, importance = TRUE)
+model2 = randomForest(x = xtrain2, y = as.factor(ytrain2), ntree = 500, importance = TRUE)
+model3 = randomForest(x = xtrain3, y = as.factor(ytrain3), ntree = 500, importance = TRUE)
+model4 = randomForest(x = xtrain4, y = as.factor(ytrain4), ntree = 500, importance = TRUE)
+model5 = randomForest(x = xtrain5, y = as.factor(ytrain5), ntree = 500, importance = TRUE)
+
+
+```
+
+```{r}
+predictions1 = predict(model1, newdata = xtest1)
+confusion_matrix1 = table(observed = as.factor(ytest1), predicted = predictions1)
+predictions2 = predict(model2, newdata = xtest2)
+confusion_matrix2 = table(observed = as.factor(ytest2), predicted = predictions2)
+predictions3 = predict(model3, newdata = xtest3)
+confusion_matrix3 = table(observed = as.factor(ytest3), predicted = predictions3)
+predictions4 = predict(model4, newdata = xtest4)
+confusion_matrix4 = table(observed = as.factor(ytest4), predicted = predictions4)
+predictions5 = predict(model5, newdata = xtest5)
+confusion_matrix5 = table(observed = as.factor(ytest5), predicted = predictions5)
+
+confusion_matrix_all = confusion_matrix1 + confusion_matrix2 + confusion_matrix3 + confusion_matrix4 + confusion_matrix5
+print(confusion_matrix_all)
+confusion_matrix_accuracy = sum(diag(confusion_matrix_all)) / sum(confusion_matrix_all)
+print(paste("Accuracy:", confusion_matrix_accuracy))
+
+```
+## Heatmap
+
+```{r}
+library(pheatmap)
+
+confusion_matrix_all_matrix = as.matrix(confusion_matrix_all) 
+rownames(confusion_matrix_all_matrix) = paste("Actual", rownames(confusion_matrix_all_matrix))
+colnames(confusion_matrix_all_matrix) = paste("Predicted", colnames(confusion_matrix_all_matrix))
+
+custom_colors = colorRampPalette(c("white", "steelblue"))(100) 
+
+pheatmap(confusion_matrix_all_matrix,
+         display_numbers = TRUE,
+         main = "Random Forest Confusion Matrix",
+         cluster_rows = FALSE,
+         cluster_cols = FALSE,
+         color = custom_colors)
+
+```
